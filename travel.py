@@ -44,7 +44,8 @@ def cruise_tests(target_roll: int, distance: int, rolls: int = 100) -> list[int]
 
 		pl = 0
 		while d > 0:
-			if random.randint(1, 100) <= target_roll:
+			roll = random.randint(1, 100)
+			if roll  <= target_roll or roll == 1:
 				d -= 1
 			pl += 1
 
@@ -87,15 +88,11 @@ def calculate_percentages(results: list[int]) -> None:
 def main():
 	print('Hello traveller!')
 
-	intelligence = 30
-	cruise_mod = 10
-	pilot_skill = 0
-	distance = 5
-	print(f'Testing for: INT {intelligence} CM {cruise_mod} pilot {pilot_skill}')
-	print(f'Travelling {distance} areas.')
-
-	results = cruise_tests(intelligence + cruise_mod + pilot_skill, distance, 100000)
-	calculate_percentages(results)
+	distance = 8
+	for total_skill in range(10, 100, 10):
+		print(f'Total skill: {total_skill}, distance {distance}')
+		results = cruise_tests(total_skill, distance, 100000)
+		calculate_percentages(results)
 
 
 if __name__ == '__main__':
