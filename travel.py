@@ -28,6 +28,7 @@ travelled.
 """
 
 import dataclasses
+import math
 import random
 
 SAMPLES = 20000
@@ -88,15 +89,43 @@ def make_histogram(results: list[int]) -> dict[int, Sample]:
 	return counts
 
 
+def resample_into_d9(histo: dict[int, Sample]) -> list[int]:
+	"""Resamples a histogram into a D9 table."""
+
+	# Invert the histogram, to be keyed by running percentage.
+	pl_by_running_total = {}
+	for k in histo:
+		pl_by_running_total[histo[k].running_percentage] = k
+
+	# The index into the result is found by dividing by 11, yielding 9 results.
+	# We can overwrite the last results, yielding always the highest cost.
+	results = [0] * 9
+	for k in pl_by_running_total:
+		idx = math.floor(k/11) - 1
+		results[idx] = pl_by_running_total[k]
+
+	# We now have to fill in the 0's in the list by copying over values from the
+	# left until all empty pockets are filled. These 0s can happen when there are
+	# gaps in the results.
+	for i in range(1, 9):
+		if results[i] == 0:
+			results[i] = results[i-1]
+
+	return results
+
+
 def print_percentages(histo: dict[int, Sample]) -> None:
 	"""Calculates percentages and prints a histogram for the result."""
+
+	d9 = resample_into_d9(histo)
+
 	for k in histo:
 		# Ignore small sample sizes.
 		if histo[k].count < SAMPLES * 0.02:
 			continue
 
 		dots = '*' * round(histo[k].absolute_percentage / 10)
-		s = '{0:2d} {1:5d} ({2:2d}% / {3:2d}%) {04:20s}'.format(
+		s = '{0:2d} {1:5d} ({2:2d}% / {3:2d}%) {4:20s}'.format(
 			k,
 			histo[k].count,
 			histo[k].absolute_percentage,
@@ -104,14 +133,11 @@ def print_percentages(histo: dict[int, Sample]) -> None:
 			dots)
 		print(s)
 
-	# TODO: resample the resulting table/histogram into a D10 table based on the
-	# running_total
-
 
 def main():
 	print('Hello traveller!')
 
-	distance = 4
+	distance = 3
 	total_skill = 50
 
 	print(f'Total skill: {total_skill}, distance {distance}')
