@@ -31,7 +31,9 @@ import dataclasses
 import math
 import random
 
-SAMPLES = 20000
+# The number of Monte-Carlo samples to run per table entry. Higher-values yield
+# statistically better results but is much slower to calculate.
+SAMPLES = 50000
 
 @dataclasses.dataclass
 class Sample:
@@ -41,7 +43,6 @@ class Sample:
 	absolute_percentage:	int = 0
 	# How many other samples came before.
 	running_percentage:   int = 0
-
 
 
 def cruise_tests(target_roll: int, distance: int, rolls: int = 100) -> list[int]:
@@ -111,6 +112,10 @@ def resample_into_d9(histo: dict[int, Sample]) -> list[int]:
 		if results[i] == 0:
 			results[i] = results[i-1]
 
+	for i in range(8, -1, -1):
+		if results[i] == 0:
+			results[i] = results[i+1]
+
 	return results
 
 
@@ -134,16 +139,52 @@ def print_percentages(histo: dict[int, Sample]) -> None:
 		print(s)
 
 
+def print_table(table: dict[tuple[int, int], list[int]]) -> None:
+	"""Prints a table of D9s, indexed by skill and distance."""
+
+
+	print(' Skill                                 Distance')
+	print('          2          3          4          5          6          7          8          9')
+
+	for k in range(20, 110, 10):
+		# We need 3 prints for every line, due to D9, as we split it into 3 lines
+		# of 3 entries each.
+		line0 = '      '
+		line1 = ' {0:3d}  '.format(k)
+		line2 = '      '
+
+		for d in range(2, 10):
+			d9 = table[(k, d)]
+			def make_table_row(row: int) -> str:
+				assert row >= 0 < 3
+				k = row*3
+				return '{0:2d} {1:2d} {2:2d}'.format(d9[k+0], d9[k+1], d9[k+2])
+
+			line0 += make_table_row(0) + '   '
+			line1 += make_table_row(1) + '   '
+			line2 += make_table_row(2) + '   '
+
+		print(line0)
+		print(line1)
+		print(line2)
+
+		print()	
+
+
 def main():
 	print('Hello traveller!')
 
-	distance = 3
-	total_skill = 50
+	# D9s for the whole table.
+	table = {} #: dict[tuple[2], list[int]] = {}
+	for distance in range(2, 10):
+		for skill in range(20, 110, 10):
+			# print(f'Total skill: {skill}, distance {distance}')
+			results = cruise_tests(skill, distance, SAMPLES)
+			histo = make_histogram(results)
+			d9 = resample_into_d9(histo)
+			table[(skill, distance)] = d9
 
-	print(f'Total skill: {total_skill}, distance {distance}')
-	results = cruise_tests(total_skill, distance, SAMPLES)
-	histo = make_histogram(results)
-	print_percentages(histo)
+	print_table(table)
 
 
 if __name__ == '__main__':
