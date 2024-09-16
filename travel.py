@@ -27,10 +27,21 @@ D10 lookup tables that return the total power loss (PL) for this distance
 travelled.
 """
 
+import dataclasses
 import random
 
-
 SAMPLES = 20000
+
+@dataclasses.dataclass
+class Sample:
+	# How many samples were counted.
+	count:								int
+	# This sample's percentage of the whole.
+	absolute_percentage:	int = 0
+	# How many other samples came before.
+	running_percentage:   int = 0
+
+
 
 def cruise_tests(target_roll: int, distance: int, rolls: int = 100) -> list[int]:
 	"""Performs successive cruise tests until the ship arrives at the distance.
@@ -56,38 +67,40 @@ def cruise_tests(target_roll: int, distance: int, rolls: int = 100) -> list[int]
 	return sorted(results)
 
 
-def make_histogram(results: list[int]) -> dict[int, int]:
+def make_histogram(results: list[int]) -> dict[int, Sample]:
+	"""Returns a dict of Samples, keyed by PL."""
 	counts = {}
 	for r in results:
 		try:
-			counts[r] += 1
+			counts[r].count += 1
 		except KeyError:
-			counts[r] = 1
+			counts[r] = Sample(count=1)
 
-	return counts;
-
-
-
-
-def print_percentages(histo: dict[int, int]) -> None:
-	"""Calculates percentages and prints a histogram for the result."""
 
 	running_total = 0
-	for k in histo.keys():
-		rel_val = float(histo[k]) / SAMPLES
-		dots = '*' * int(rel_val * 20)
+	for k in counts:
+		rel_val = float(counts[k].count) / SAMPLES
 
-		# Ignore all results below 1%
-		if rel_val < 0.01:
+		counts[k].absolute_percentage = round(rel_val*100)
+		running_total += counts[k].absolute_percentage
+		counts[k].running_percentage = running_total
+
+	return counts
+
+
+def print_percentages(histo: dict[int, Sample]) -> None:
+	"""Calculates percentages and prints a histogram for the result."""
+	for k in histo:
+		# Ignore small sample sizes.
+		if histo[k].count < SAMPLES * 0.02:
 			continue
 
-		absolute_percentage = round(rel_val*100)
-		running_total += absolute_percentage
+		dots = '*' * round(histo[k].absolute_percentage / 10)
 		s = '{0:2d} {1:5d} ({2:2d}% / {3:2d}%) {04:20s}'.format(
 			k,
-			histo[k],
-			absolute_percentage,
-			running_total,
+			histo[k].count,
+			histo[k].absolute_percentage,
+			histo[k].running_percentage,
 			dots)
 		print(s)
 
@@ -98,13 +111,12 @@ def print_percentages(histo: dict[int, int]) -> None:
 def main():
 	print('Hello traveller!')
 
-	distance = 8
+	distance = 4
 	total_skill = 50
 
 	print(f'Total skill: {total_skill}, distance {distance}')
 	results = cruise_tests(total_skill, distance, SAMPLES)
 	histo = make_histogram(results)
-
 	print_percentages(histo)
 
 
