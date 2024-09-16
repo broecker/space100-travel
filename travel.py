@@ -33,7 +33,7 @@ import random
 
 # The number of Monte-Carlo samples to run per table entry. Higher-values yield
 # statistically better results but is much slower to calculate.
-SAMPLES = 50000
+SAMPLES = 1500
 
 @dataclasses.dataclass
 class Sample:
@@ -45,17 +45,16 @@ class Sample:
 	running_percentage:   int = 0
 
 
-def cruise_tests(target_roll: int, distance: int, rolls: int = 100) -> list[int]:
+def cruise_tests(target_roll: int, distance: int) -> list[int]:
 	"""Performs successive cruise tests until the ship arrives at the distance.
 
 		target_roll = Int + CM + Pilot skill
 		distance: distance to travel
-		rolls: how many rolls to perform
-		Returns a list of PL /losses/. It will always return /rolls/ results.
+		Returns a list of PL /losses/. It will always return /SAMPLES/ results.
 	"""
 	results = []
 
-	for _ in range(0, rolls):
+	for _ in range(0, SAMPLES):
 		d = distance
 
 		pl = 0
@@ -102,8 +101,12 @@ def resample_into_d9(histo: dict[int, Sample]) -> list[int]:
 	# We can overwrite the last results, yielding always the highest cost.
 	results = [0] * 9
 	for k in pl_by_running_total:
-		idx = math.floor(k/11) - 1
-		results[idx] = pl_by_running_total[k]
+		idx = math.floor(k/11)
+		try:
+			results[idx] = pl_by_running_total[k]
+		except IndexError:
+			# This happens when we actually have running totals over 99% ...
+			pass
 
 	# We now have to fill in the 0's in the list by copying over values from the
 	# left until all empty pockets are filled. These 0s can happen when there are
@@ -112,9 +115,16 @@ def resample_into_d9(histo: dict[int, Sample]) -> list[int]:
 		if results[i] == 0:
 			results[i] = results[i-1]
 
-	for i in range(8, -1, -1):
+	for i in range(7, 0, -1):
 		if results[i] == 0:
-			results[i] = results[i+1]
+			try:
+				results[i] = results[i+1]
+			except IndexError as e:
+				raise i
+
+	# Last clean up -- values > 99 are a bit silly. Let's cap those at 99.
+	for i in range(0, 9):
+		results[i] = min(results[i], 99)
 
 	return results
 
@@ -175,11 +185,10 @@ def main():
 	print('Hello traveller!')
 
 	# D9s for the whole table.
-	table = {} #: dict[tuple[2], list[int]] = {}
+	table = {}
 	for distance in range(2, 10):
-		for skill in range(20, 110, 10):
-			# print(f'Total skill: {skill}, distance {distance}')
-			results = cruise_tests(skill, distance, SAMPLES)
+		for skill in range(20, 110, 10):		
+			results = cruise_tests(skill, distance)
 			histo = make_histogram(results)
 			d9 = resample_into_d9(histo)
 			table[(skill, distance)] = d9
