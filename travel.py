@@ -190,16 +190,6 @@ def print_table(table: dict[tuple[int, int], list[int]]) -> None:
         print()
 
 
-def print_table_to_html(table: dict[tuple[int, int], list[int]]) -> None:
-    print("<table>")
-    print("  <thead>")
-    print("    <tr>")
-    print("      <th scope>")
-    print("    </tr>")
-    print("  </thead>")
-    print("</table>")
-
-
 def main():
     print("Hello traveller!")
 
